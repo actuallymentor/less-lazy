@@ -1,7 +1,7 @@
 {
   "name": "less-lazy",
   "version": "0.0.2",
-  "description": "Prefetched module loading for React.lazy",
+  "description": "Prefetching module loading for React.lazy",
   "main": "app.js",
   "type": "module",
   "scripts": {

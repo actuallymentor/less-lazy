@@ -22,7 +22,7 @@ function idempotent_add_link( href, _memo_import, options ) {
     const _link = document.querySelector( `link[href="${ href }"]` )
 
     // Check if the link has the right rel attribute, if yes, return
-    if( _link && _link.rel == rel ) return log.info( `[less-lazy] Preload already exists for [rel=${ rel }][href=${ href }]` )
+    if( _link && _link.rel == rel ) return log.info( `[less-lazy] preload already exists for [rel=${ rel }][href=${ href }]` )
     
     // If link with wrong rel exists, remove it
     if( _link ) {
@@ -41,11 +41,11 @@ function idempotent_add_link( href, _memo_import, options ) {
 
     // Attach a listener to the element that marks the element as loaded
     link.addEventListener( 'load', () => {
-        log.info( `[less-lazy] Preload loaded for ${ href }` )
+        log.info( `[less-lazy] preload downloaded for ${ href }` )
         link.setAttribute( 'data-loaded', 'true' )
 
         // Check if the module should be loaded into memory
-        if( !force_in_memory ) return log.info( `[less-lazy] Preloaded module not loaded into memory: ${ href }` )
+        if( !force_in_memory ) return log.info( `[less-lazy] Preloaded module not loaded into memory as force_in_memory is false: ${ href }` )
         
         // Load the module into memory, note this is a promise run outside of the event loop
         _memo_import()
@@ -87,7 +87,7 @@ export function prefetch( _import, options={ rel: "prefetch", force_in_memory: t
     if( _memo_import ) return _memo_import
 
     // Cache (memoize) the import function
-    log.info( `[less-lazy] Caching import function: ${ _import }` )
+    log.info( `[less-lazy] caching import function: ${ _import }` )
     _memo_import = cache( _import, _import )
 
     /* ///////////////////////////////
@@ -96,11 +96,11 @@ export function prefetch( _import, options={ rel: "prefetch", force_in_memory: t
 
     // Get the cached import path (functions when used as keys are cast as strings)
     let _import_path = cache( `${ _import }_path` )
-    if( _import_path ) log.info( `[less-lazy] Cache hit for import path: ${ _import }` )
+    if( _import_path ) log.info( `[less-lazy] cache hit for import path: ${ _import }` )
 
     // Get the import path from the import function
     _import_path ||= _import.toString().match( /(?<=import\(")(.*)(?="\))/ )?.[0]
-    if( !_import_path ) log.warn( `[less-lazy] Could not extract import path from: ${ _import }` )
+    if( !_import_path ) log.warn( `[less-lazy] could not extract import path from: ${ _import }` )
 
     // Cache the import path
     cache( `${ _import }_path`, _import_path )

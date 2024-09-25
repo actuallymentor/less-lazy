@@ -20,7 +20,7 @@ This module works by:
 ## Installation
 
 ```bash
-npm i -D less-lazy
+npm i -S less-lazy
 ```
 
 ## Usage

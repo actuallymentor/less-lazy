@@ -6,5 +6,12 @@ export interface PrefetchOptions {
     when?: ( ( prefetch: () => void ) => void ) | false
 }
 
-/** Wraps a dynamic import so it loads in the background; pass the result to React.lazy */
-export function prefetch<T>( load: () => Promise<T>, options?: PrefetchOptions ): () => PromiseLike<T>
+/** Memoized import function, pass it to React.lazy */
+export interface PrefetchedLoader<T> {
+    (): Promise<T>
+    /** Starts the load in the background, never rejects. Safe for event handlers */
+    prefetch(): Promise<void>
+}
+
+/** Wraps a dynamic import so it loads in the background */
+export function prefetch<T>( load: () => Promise<T>, options?: PrefetchOptions ): PrefetchedLoader<T>

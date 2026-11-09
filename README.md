@@ -50,10 +50,10 @@ import { prefetch, when_idle } from 'less-lazy'
 // Start right away
 const Now = lazy( prefetch( () => import( './Now' ), { when: run => run() } ) )
 
-// Manual, e.g. on hover intent
+// Manual, e.g. on hover intent. .prefetch() never rejects, safe for handlers
 const load_settings = prefetch( () => import( './Settings' ), { when: false } )
 const Settings = lazy( load_settings )
-<Link to="/settings" onMouseEnter={ load_settings }>Settings</Link>
+<Link to="/settings" onMouseEnter={ load_settings.prefetch }>Settings</Link>
 ```
 
 ### Debugging

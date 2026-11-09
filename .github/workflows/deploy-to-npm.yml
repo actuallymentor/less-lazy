@@ -25,7 +25,7 @@ jobs:
         env:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
 
-  # Publish only when package.json changed on main
+  # Publish when package.json holds a version npm doesn't have yet
   publish:
     name: Publish to npm
     needs: test
@@ -33,11 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 2
-      - name: Skip unless package.json changed
+      - name: Skip if this version is already published
         id: changed
-        run: git diff --quiet HEAD~1 -- package.json && echo "skip=true" >> "$GITHUB_OUTPUT" || true
+        run: |
+          local_version=$(node -p "require('./package.json').version")
+          npm view "less-lazy@$local_version" version --silent && echo "skip=true" >> "$GITHUB_OUTPUT" || true
       - uses: actions/setup-node@v7
         if: steps.changed.outputs.skip != 'true'
         with:

@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "noEmit": true,
+        "jsx": "react-jsx",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "skipLibCheck": false
+    },
+    "files": [ "usage.tsx" ]
+}

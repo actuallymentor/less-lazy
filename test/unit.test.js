@@ -50,6 +50,18 @@ test( `does not prefetch outside the browser`, () => {
     assert.equal( scheduled, false )
 } )
 
+test( `cached promise forwards values and turns handler errors into rejections`, async () => {
+    const memo = prefetch( counting_loader() )
+    await memo()
+    assert.deepEqual( await memo().then(), { default: `module` } )
+    await assert.rejects( memo().then( () => { throw new Error( `boom` ) } ), /boom/ )
+} )
+
+test( `.prefetch() never rejects, even when the loader throws synchronously`, async () => {
+    const memo = prefetch( () => { throw new Error( `sync fail` ) } )
+    await memo.prefetch()
+} )
+
 test( `passes non-functions through untouched`, () => {
     assert.equal( prefetch( `nope` ), `nope` )
 } )

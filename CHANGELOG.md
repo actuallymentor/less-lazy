@@ -12,8 +12,10 @@
 
 **Added**
 - `when_idle` export: waits for page load, then idle time
+- `loader.prefetch()`: never-rejecting background trigger for event handlers (hover intent)
 - TypeScript types, `exports` map, React peer dependency
-- Unit + Puppeteer e2e tests against Vite dev and prod builds, CI test gate before publish
+- Unit, TypeScript consumer, and Puppeteer e2e tests against Vite dev and prod builds, CI test gate before publish
+- CI publishes whenever `package.json` holds a version not yet on npm
 
 **Changed**
 - Dependencies updated: `mentie` 0.5, Node 26 LTS in `.nvmrc`

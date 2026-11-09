@@ -1,99 +1,84 @@
 # less-lazy: prefetched loading for React.lazy
 
-This module is a utility function designed to be used with React.js's `lazy` function and a bundler like [Vite](https://vitejs.dev/) that supports code splitting. Using this module will allow your main app bundle to be small, while also telling the browser to (in the background) load the code for pages that a user is likely to visit soon.
+Keep your main bundle small with `React.lazy`, but download and run the code for likely next pages in the background, so they render instantly with no `Suspense` flash.
 
-**Contents**
+- No dependencies besides a logger, ~60 lines, works with any bundler that supports `import()` (Vite, webpack, Rollup, esbuild)
+- Tested end to end against Vite dev **and** production builds in real Chrome
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Options](#options)
-- [Why this module?](#why-this-module)
+**Contents:** [Install](#install) · [Usage](#usage) · [Options](#options) · [How it works](#how-it-works) · [When to use it](#when-to-use-it) · [Development](#development)
 
-
-This module works by:
-
-1. Adding the import to the `<head>` section of the DOM as a `<link rel="prefetch">`
-    - This tells the browser "we don't need this yet but we will need it soon, load is when you have a moment"
-2. Adding a listener to that `<link>` so the app loads the page into memory once it is loaded
-    - This prevents a quick flashing of a loading spinner that occurs during the evaluation of the module usually
-
-## Installation
+## Install
 
 ```bash
-npm i -S less-lazy
+npm i less-lazy
 ```
 
 ## Usage
 
-This module is designed to be used with React's `lazy` function. It is a higher order function that takes in a function that returns a promise (e.g. `() => import('./module')`) and returns a function that can be used with `React.lazy`.
-
-
-Example usage with `react-router`:
-
-```javascript
-// Dependencies
+```jsx
 import { Suspense, lazy } from 'react'
 import { prefetch } from 'less-lazy'
-import { BrowserRouter, Route, Routes, useNavigate, useLocation } from "react-router-dom"
 
-// Normal import
-// import HomePage from './components/HomePage'
+// Plain lazy: loads on first render, flashes the fallback
+const Profile = lazy( () => import( './pages/Profile' ) )
 
-// Regular lazy loading
-// const HomePage = lazy( () => import( './components/HomePage ) )
+// less-lazy: loads when the browser is idle, renders instantly later
+const Details = lazy( prefetch( () => import( './pages/Details' ) ) )
 
-// Lazy loading with less-lazy wrapping
-const HomePage = lazy( prefetch( () => import( './components/HomePage' ) ) )
-
-// React router example that uses suspense with lazy loaded component
-export default function Router() {
-
-    return <Suspense>
-        <BrowserRouter>
-            <Routes>
-                <Route exact path='/' element={ <Homepage /> } />
-            </Routes>
-        </BrowserRouter>
-    </Suspense>
-
-}
+export const App = () => <Suspense fallback={ <Spinner /> }>
+    <Details />
+</Suspense>
 ```
+
+Call `prefetch` at module scope, same as `React.lazy`.
 
 ## Options
 
-The `prefetch` function takes in two parameters:
+`prefetch( load, { when } )`
 
-1. A loading function
-2. An options object
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `when` | `when_idle` | Scheduler that gets the prefetch callback. `false` = manual |
 
-The options object has two properties:
+`when_idle` waits for the `load` event, then `requestIdleCallback` (or a 200ms timeout in Safari).
 
-1. `rel` - The rel attribute of the `<link>` element (default: "prefetch").
-    - [prefetch](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/prefetch) *"provides a hint to browsers that the user is likely to need the target resource for future navigations, and therefore the browser can likely improve the user experience by preemptively fetching and caching the resource"*
-    - [preload](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preload) is for *"specifying resources that your page will need very soon, which you want to start loading early in the page lifecycle, before browsers' main rendering machinery kicks in"*
-2. `force_in_memory` - Whether to load the module into memory (default: true).
-    - If you set this to false, the module will be downloaded according to your `rel` policy, but when a user navigates to a page there will still be a brief moment where your code needs to evaluate the module on disk into memory.
+Custom triggers:
+
+```jsx
+import { prefetch, when_idle } from 'less-lazy'
+
+// Start right away
+const Now = lazy( prefetch( () => import( './Now' ), { when: run => run() } ) )
+
+// Manual, e.g. on hover intent
+const load_settings = prefetch( () => import( './Settings' ), { when: false } )
+const Settings = lazy( load_settings )
+<Link to="/settings" onMouseEnter={ load_settings }>Settings</Link>
+```
 
 ### Debugging
 
-This module logs out what is does when run in a `localhost` server. In production you can enable logging by appending `?loglevel=info` to your URL. All logs are prefixed with `[less-lazy]`.
+Logs go through [`mentie`](https://www.npmjs.com/package/mentie). Shown on `localhost`, add `?loglevel=info` elsewhere. Prefix: `[less-lazy]`.
 
-## Why this module?
+## How it works
 
-Using `React.lazy` is a great way to allow bundlers like [Vite](https://vitejs.dev/) to split your code into multiple files that are loaded as needed. This makes it so that users on a slow connection do not need to load your whole app bundle, but only the page they are at.
+1. `prefetch` wraps your import function and memoizes it, so the background load and `React.lazy` share one request
+2. When idle, it calls the import. The bundler resolves the real chunk URL (hashes, `base`, CDN), and the module is downloaded **and** evaluated
+3. Once loaded, the wrapper hands `React.lazy` a synchronous thenable, so React resolves the component without suspending: zero fallback frames
+4. A failed prefetch is forgotten, so the render tries again
 
-The "problem" you run in to is that when a user navigates to such an unloaded page, the device still needs to load the remote file that contains the code that Vite split into a different file. If your user spent 20 seconds reading your homepage (after it loaded super fast of course), those 20 seconds were "wasted" because the browser just sat there idle. The browser had no way of knowing that your user might need an extra file (the page they are navigating to) soon.
+## When to use it
 
-Browsers actually **have** a super cool way to load things that you tell them they will need soon. You can add a [resource hint](https://caniuse.com/?search=resource%20hint). In our case we can add a  `<link>` element to the header specifying a `rel` type that tells the browser you think the user will need something soon. When that file is loaded is left up to the browser, but the prefetch hint has [good browser support](https://caniuse.com/link-rel-prefetch).
+- Pages most users will see, but not first (e.g. product details): use `prefetch`
+- Pages few users open that pull in heavy code (e.g. image editor): plain `React.lazy`
+- Small pages or common landing pages: no lazy loading
 
-The final issue is that if a browser downloaded a file in the background, that file is not yet "hot" in the memory of the device. Our code within a `React.lazy` declaration has not been triggered yet (if the user hasn't opened the page yet). That means that if the user navigates to the page, they will still see a momentary loading spinner (or blank page, depending on how you configuted `Suspense`).
+Router-level alternatives: React Router / TanStack Router intent preloading, Next.js `<Link>`. less-lazy fits plain `React.lazy` setups.
 
-This module adds a listener to the `<link>` element that runs the import function in the background when the file has been loaded. This loads the module into memory, ready to use.
+## Development
 
-The cool thing about the `() => import()` function passed to `React.lazy` is that is is an async function we can simply call without rendering anything, and since any Javascript module that is imported while our app is cached in memory, calling `import` (without actually rendering it) will make the browser put it into memory. The same thing that optimises identical `import` and `require` statements in multiple files (or even withinn functions) makes it so that our prefetched moldule is not ready to render!
+```bash
+npm test   # node:test unit tests + Puppeteer e2e against Vite dev and prod builds
+```
 
-Whether you use this module on a component depends entirely on how you want your app to behave, and that will depend on your users and the experience you want them to have. Some heuristics I personally use:
-
-- Do not lazy load small pages, or pages you expect every user to see (e.g. a product page that people will link to directly)
-- Use this module for pages that a user will probably see, but will probably not see first (e.g. the details page of en ecommerce app)
-- Use `React.lazy` without this module for pages that a user might not open and that import heavy modules (e.g. a profile page that loads an in-browser image compression module)
+Set `PUPPETEER_EXECUTABLE_PATH` to use a system Chrome. The fixture app lives in `test/fixture`.

@@ -1,15 +1,53 @@
 {
   "name": "less-lazy",
-  "version": "0.0.2",
-  "description": "Prefetching module loading for React.lazy",
-  "main": "app.js",
+  "version": "1.0.0",
+  "description": "Background prefetching for React.lazy: lazy-loaded pages render instantly, no Suspense flash",
+  "keywords": [
+    "react",
+    "lazy",
+    "prefetch",
+    "preload",
+    "suspense",
+    "code-splitting",
+    "vite"
+  ],
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./app.js"
+    }
+  },
+  "main": "app.js",
+  "types": "index.d.ts",
+  "files": [
+    "app.js",
+    "index.d.ts"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test \"test/*.test.js\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/actuallymentor/less-lazy.git"
   },
   "author": "Mentor <mentor@palokaj.co> (http://github.com/actuallymentor)",
   "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18"
+  },
   "dependencies": {
-    "mentie": "^0.2.36"
+    "mentie": "^0.5.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.3.0",
+    "puppeteer": "^25.16.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^8.3.7"
   }
 }

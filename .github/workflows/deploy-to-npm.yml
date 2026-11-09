@@ -1,36 +1,50 @@
-name: Deploy to npm
+name: Test and publish
 
 on:
+  pull_request:
   push:
     branches:
       - main
-    paths:
-      - "package.json"
 
 jobs:
-  # Build the frontend files
-  build:
-    name: Deploy changes to npm
 
+  test:
+    name: Unit + e2e (dev and prod builds)
     runs-on: ubuntu-latest
-
     steps:
-      # Environment and dependency setup
-      - name: Cloning repository
-        uses: actions/checkout@v3
-
-      # Set up node and install frontend dependencies
-      - name: Set up Node.js (.nvmrc)
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: "Publish to NPM"
-        run: |
-          npm publish --access public
+      - run: npm ci
         env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+      # Runner ships a sandbox-ready system Chrome, use it instead of a downloaded one
+      - run: npm test
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+
+  # Publish only when package.json changed on main
+  publish:
+    name: Publish to npm
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Skip unless package.json changed
+        id: changed
+        run: git diff --quiet HEAD~1 -- package.json && echo "skip=true" >> "$GITHUB_OUTPUT" || true
+      - uses: actions/setup-node@v7
+        if: steps.changed.outputs.skip != 'true'
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+      - if: steps.changed.outputs.skip != 'true'
+        run: npm ci && npm publish --access public
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
           NPM_ACCESS_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}

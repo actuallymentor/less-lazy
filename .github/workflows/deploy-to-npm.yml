@@ -2,6 +2,7 @@ name: Test and publish
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -29,8 +30,12 @@ jobs:
   publish:
     name: Publish to npm
     needs: test
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Trusted publishing (OIDC): no token, npm verifies this workflow directly
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
       - name: Skip if this version is already published
@@ -47,4 +52,3 @@ jobs:
         run: npm ci && npm publish --access public
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
-          NPM_ACCESS_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}

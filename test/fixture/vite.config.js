@@ -6,6 +6,6 @@ import { fileURLToPath } from 'node:url'
 export default defineConfig( {
     root: fileURLToPath( new URL( `.`, import.meta.url ) ),
     plugins: [ react() ],
-    resolve: { alias: { 'less-lazy': fileURLToPath( new URL( `../../app.js`, import.meta.url ) ) } },
+    resolve: { alias: { 'less-lazy': fileURLToPath( new URL( `../../index.js`, import.meta.url ) ) } },
     logLevel: `warn`,
 } )

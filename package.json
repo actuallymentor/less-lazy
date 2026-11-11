@@ -1,7 +1,7 @@
 {
   "name": "less-lazy",
-  "version": "1.0.0",
-  "description": "Background prefetching for React.lazy: lazy-loaded pages render instantly, no Suspense flash",
+  "version": "2.0.0",
+  "description": "Drop-in React.lazy that loads pages in the background: instant renders, no Suspense flash, zero dependencies",
   "keywords": [
     "react",
     "lazy",
@@ -15,13 +15,13 @@
   "exports": {
     ".": {
       "types": "./index.d.ts",
-      "default": "./app.js"
+      "default": "./index.js"
     }
   },
-  "main": "app.js",
+  "main": "index.js",
   "types": "index.d.ts",
   "files": [
-    "app.js",
+    "index.js",
     "index.d.ts"
   ],
   "sideEffects": false,
@@ -39,9 +39,6 @@
   "license": "MIT",
   "peerDependencies": {
     "react": ">=18"
-  },
-  "dependencies": {
-    "mentie": "^0.5.4"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

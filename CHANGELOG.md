@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.0.0 — 2026-11-11
+
+**Breaking**
+- One export: `lazy( () => import(), { prefetch } )` replaces `React.lazy( prefetch( ... ) )`
+- `when` option replaced by `prefetch: 'idle' | 'eager' | false`; `when_idle` no longer exported
+- Throws a `TypeError` on a non-function loader instead of logging
+
+**Fixed**
+- Failed loads are now recoverable: an error boundary reset retries instead of rethrowing the cached error (React 18 and 19)
+
+**Changed**
+- Zero dependencies: dropped `mentie`, failed prefetches log via `console.warn`
+- Entry file renamed to `index.js`
+- CI tests React 18, 19 and canary (weekly), and creates a GitHub release on publish
+
 ## 1.0.0 — 2026-11-09
 
 **Breaking**

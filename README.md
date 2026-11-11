@@ -1,9 +1,10 @@
-# less-lazy: prefetched loading for React.lazy
+# less-lazy: React.lazy, minus the loading flash
 
-Keep your main bundle small with `React.lazy`, but download and run the code for likely next pages in the background, so they render instantly with no `Suspense` flash.
+Drop-in replacement for `React.lazy`. Keeps your main bundle small, but downloads and runs the code for likely next pages in the background, so they render instantly. No `Suspense` flash.
 
-- No dependencies besides a logger, ~60 lines, works with any bundler that supports `import()` (Vite, webpack, Rollup, esbuild)
-- Tested end to end against Vite dev **and** production builds in real Chrome
+- Zero dependencies, ~100 lines, any bundler with `import()` (Vite, webpack, Rollup, esbuild)
+- Recovers from failed loads: an error boundary "try again" actually retries
+- Tested end to end in real Chrome against Vite dev and production builds, on React 18, 19 and canary
 
 **Contents:** [Install](#install) · [Usage](#usage) · [Options](#options) · [How it works](#how-it-works) · [When to use it](#when-to-use-it) · [Development](#development)
 
@@ -16,69 +17,71 @@ npm i less-lazy
 ## Usage
 
 ```jsx
-import { Suspense, lazy } from 'react'
-import { prefetch } from 'less-lazy'
+import { Suspense } from 'react'
+import { lazy } from 'less-lazy'
 
-// Plain lazy: loads on first render, flashes the fallback
-const Profile = lazy( () => import( './pages/Profile' ) )
-
-// less-lazy: loads when the browser is idle, renders instantly later
-const Details = lazy( prefetch( () => import( './pages/Details' ) ) )
+// Same signature as React.lazy, loads in the background once the browser is idle
+const Details = lazy( () => import( './pages/Details' ) )
 
 export const App = () => <Suspense fallback={ <Spinner /> }>
     <Details />
 </Suspense>
 ```
 
-Call `prefetch` at module scope, same as `React.lazy`.
+Call `lazy` at module scope, same as `React.lazy`.
 
 ## Options
 
-`prefetch( load, { when } )`
+`lazy( load, { prefetch } )`
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `when` | `when_idle` | Scheduler that gets the prefetch callback. `false` = manual |
+| `prefetch` | Loads |
+| --- | --- |
+| `'idle'` (default) | After the `load` event, when the browser is idle |
+| `'eager'` | Immediately |
+| `false` | Only when you call `.prefetch()` |
 
-`when_idle` waits for the `load` event, then `requestIdleCallback` (or a 200ms timeout in Safari).
-
-Custom triggers:
+Every component has `.prefetch()`, which starts the load and never rejects. That makes it safe in event handlers:
 
 ```jsx
-import { prefetch, when_idle } from 'less-lazy'
+// Load on hover intent instead of idle time
+const Settings = lazy( () => import( './Settings' ), { prefetch: false } )
 
-// Start right away
-const Now = lazy( prefetch( () => import( './Now' ), { when: run => run() } ) )
-
-// Manual, e.g. on hover intent. .prefetch() never rejects, safe for handlers
-const load_settings = prefetch( () => import( './Settings' ), { when: false } )
-const Settings = lazy( load_settings )
-<Link to="/settings" onMouseEnter={ load_settings.prefetch }>Settings</Link>
+<Link to="/settings" onMouseEnter={ Settings.prefetch }>Settings</Link>
 ```
 
-### Debugging
-
-Logs go through [`mentie`](https://www.npmjs.com/package/mentie). Shown on `localhost`, add `?loglevel=info` elsewhere. Prefix: `[less-lazy]`.
+Failed background loads log a `console.warn` prefixed `[less-lazy]`.
 
 ## How it works
 
-1. `prefetch` wraps your import function and memoizes it, so the background load and `React.lazy` share one request
-2. When idle, it calls the import. The bundler resolves the real chunk URL (hashes, `base`, CDN), and the module is downloaded **and** evaluated
-3. Once loaded, the wrapper hands `React.lazy` a synchronous thenable, so React resolves the component without suspending: zero fallback frames
-4. A failed prefetch is forgotten, so the render tries again
+1. The import is memoized, so the background load and the render share one request
+2. Calling the import lets the bundler resolve the real chunk URL (hashes, `base`, CDN). The module is downloaded **and** evaluated
+3. Once loaded, `React.lazy` gets a promise that resolves synchronously, so React renders without suspending: zero fallback frames
+4. `React.lazy` caches failures forever. less-lazy swaps in a fresh instance after a failure reaches your error boundary, so its reset retries the load
 
 ## When to use it
 
-- Pages most users will see, but not first (e.g. product details): use `prefetch`
-- Pages few users open that pull in heavy code (e.g. image editor): plain `React.lazy`
+- Pages most users will see, but not first (e.g. product details): `lazy` from less-lazy
+- Pages few users open that pull in heavy code (e.g. image editor): `prefetch: false` + `.prefetch()` on intent, or plain `React.lazy`
 - Small pages or common landing pages: no lazy loading
+- SSR: components already in the server HTML hydrate as usual. The gain is for components rendered after hydration
 
-Router-level alternatives: React Router / TanStack Router intent preloading, Next.js `<Link>`. less-lazy fits plain `React.lazy` setups.
+Router-level alternatives: React Router / TanStack Router intent preloading, Next.js `<Link>`.
+
+## Upgrading from 1.x
+
+```diff
+- import { prefetch } from 'less-lazy'
+- const Page = lazy( prefetch( () => import( './Page' ) ) )
++ import { lazy } from 'less-lazy'
++ const Page = lazy( () => import( './Page' ) )
+```
+
+`when: false` becomes `prefetch: false`. `when_idle` is now the default `'idle'` mode.
 
 ## Development
 
 ```bash
-npm test   # node:test unit tests + Puppeteer e2e against Vite dev and prod builds
+npm test   # unit + TypeScript consumer + Puppeteer e2e (Vite dev and prod builds)
 ```
 
-Set `PUPPETEER_EXECUTABLE_PATH` to use a system Chrome. The fixture app lives in `test/fixture`.
+Set `PUPPETEER_EXECUTABLE_PATH` to use a system Chrome. The fixture app lives in `test/fixture`. CI runs React 18, 19 and canary (weekly too). It publishes and creates a GitHub release whenever `main` has a version npm doesn't.

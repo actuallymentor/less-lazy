@@ -58,4 +58,18 @@ Object.entries( modes ).forEach( ( [ mode, start ] ) => describe( `${ mode } bui
         assert.deepEqual( await page.evaluate( () => window.fallback_commits ), [ `plain` ] )
     } )
 
+    test( `recovers from a failed load when the error boundary resets`, async () => {
+
+        // First load fails and lands in the error boundary
+        await page.evaluate( () => window.fail_next_load = true )
+        await page.click( `#open-flaky` )
+        await page.waitForSelector( `#retry` )
+
+        // Network is back, "try again" must render the page instead of the cached error
+        await page.evaluate( () => window.fail_next_load = false )
+        await page.click( `#retry` )
+        await page.waitForSelector( `#flaky-page`, { timeout: 5_000 } )
+
+    } )
+
 } ) )

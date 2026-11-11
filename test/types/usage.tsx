@@ -1,12 +1,13 @@
 // Compile-only check: documented usage must type-check against React's own types
-import { lazy } from 'react'
-import { prefetch, when_idle } from 'less-lazy'
+import { lazy } from 'less-lazy'
 
-const Page = () => null
+const Page = ( { title }: { title: string } ) => <h1>{ title }</h1>
 
-export const Auto = lazy( prefetch( async () => ( { default: Page } ) ) )
-export const Idle = lazy( prefetch( async () => ( { default: Page } ), { when: when_idle } ) )
+const Idle = lazy( async () => ( { default: Page } ) )
+const Manual = lazy( async () => ( { default: Page } ), { prefetch: false } )
 
-const load_manual = prefetch( async () => ( { default: Page } ), { when: false } )
-export const Manual = lazy( load_manual )
-export const hover = (): Promise<void> => load_manual.prefetch()
+export const render = () => <Idle title="ok" />
+export const hover = (): Promise<void> => Manual.prefetch()
+
+// @ts-expect-error: props are inferred from the loaded component
+export const wrong = () => <Idle nope />

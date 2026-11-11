@@ -1,17 +1,15 @@
-/** Runs a callback once the page has loaded and the browser is idle */
-export function when_idle( callback: () => void ): void
+import type { ComponentProps, ComponentType, ForwardRefExoticComponent } from 'react'
 
-export interface PrefetchOptions {
-    /** Scheduler that receives the prefetch callback, or false for manual prefetching. Default: when_idle */
-    when?: ( ( prefetch: () => void ) => void ) | false
+export interface LazyOptions {
+    /** When to load: once the browser is idle, immediately, or only on `.prefetch()`. Default: 'idle' */
+    prefetch?: 'idle' | 'eager' | false
 }
 
-/** Memoized import function, pass it to React.lazy */
-export interface PrefetchedLoader<T> {
-    (): Promise<T>
+/** Lazy component with a background trigger attached */
+export type PrefetchedComponent<T extends ComponentType<any>> = ForwardRefExoticComponent<ComponentProps<T>> & {
     /** Starts the load in the background, never rejects. Safe for event handlers */
     prefetch(): Promise<void>
 }
 
-/** Wraps a dynamic import so it loads in the background */
-export function prefetch<T>( load: () => Promise<T>, options?: PrefetchOptions ): PrefetchedLoader<T>
+/** Drop-in for React.lazy that loads the module in the background so it renders without a Suspense flash */
+export function lazy<T extends ComponentType<any>>( load: () => Promise<{ default: T }>, options?: LazyOptions ): PrefetchedComponent<T>

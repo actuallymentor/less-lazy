@@ -6,12 +6,21 @@ on:
   push:
     branches:
       - main
+  # Weekly run catches React canary changes before users do
+  schedule:
+    - cron: "0 6 * * 1"
 
 jobs:
 
   test:
-    name: Unit + e2e (dev and prod builds)
+    name: Tests (React ${{ matrix.react }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        react: [ "18", "19", "canary" ]
+    # Canary is an early warning, it never blocks a release
+    continue-on-error: ${{ matrix.react == 'canary' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -21,34 +30,49 @@ jobs:
       - run: npm ci
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
-      # Runner ships a sandbox-ready system Chrome, use it instead of a downloaded one
-      - run: npm test
+      - name: Use React ${{ matrix.react }}
+        if: matrix.react != '19'
+        run: npm i --no-save react@${{ matrix.react }} react-dom@${{ matrix.react }}
+      # Types are checked against the locked React 19 types only
+      - name: Run tests
+        run: node --test ${{ matrix.react == '19' && 'test/*.test.js' || 'test/unit.test.js test/e2e.test.js' }}
         env:
+          # Runner ships a sandbox-ready system Chrome, use it instead of a downloaded one
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
 
   # Publish when package.json holds a version npm doesn't have yet
   publish:
     name: Publish to npm
     needs: test
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: ( github.event_name == 'push' || github.event_name == 'workflow_dispatch' ) && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # Trusted publishing (OIDC): no token, npm verifies this workflow directly
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v7
       - name: Skip if this version is already published
-        id: changed
+        id: version
         run: |
-          local_version=$(node -p "require('./package.json').version")
-          npm view "less-lazy@$local_version" version --silent && echo "skip=true" >> "$GITHUB_OUTPUT" || true
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          npm view "less-lazy@$version" version --silent && echo "skip=true" >> "$GITHUB_OUTPUT" || true
       - uses: actions/setup-node@v7
-        if: steps.changed.outputs.skip != 'true'
+        if: steps.version.outputs.skip != 'true'
         with:
           node-version-file: ".nvmrc"
           cache: "npm"
-      - if: steps.changed.outputs.skip != 'true'
+      - if: steps.version.outputs.skip != 'true'
         run: npm ci && npm publish --access public
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
+      # Tag + GitHub release so repo history matches npm, notes come from the CHANGELOG section
+      - name: Create GitHub release
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          awk "/^## ${VERSION} /{f=1;next} /^## /{f=0} f" CHANGELOG.md > notes.md
+          gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --notes-file notes.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}

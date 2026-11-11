@@ -1,12 +1,12 @@
-import type { ComponentProps, ComponentType, ForwardRefExoticComponent } from 'react'
+import type { ComponentType, LazyExoticComponent } from 'react'
 
 export interface LazyOptions {
     /** When to load: once the browser is idle, immediately, or only on `.prefetch()`. Default: 'idle' */
     prefetch?: 'idle' | 'eager' | false
 }
 
-/** Lazy component with a background trigger attached */
-export type PrefetchedComponent<T extends ComponentType<any>> = ForwardRefExoticComponent<ComponentProps<T>> & {
+/** Same type as React.lazy's result (refs, defaultProps), plus a background trigger */
+export type PrefetchedComponent<T extends ComponentType<any>> = LazyExoticComponent<T> & {
     /** Starts the load in the background, never rejects. Safe for event handlers */
     prefetch(): Promise<void>
 }

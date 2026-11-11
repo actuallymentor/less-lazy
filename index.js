@@ -80,18 +80,18 @@ export function lazy( load, { prefetch='idle' } = {} ) {
     // Its next render (e.g. a "try again" reset) loads anew. The swap must happen in the commit phase:
     // React 18 discards and repeats failed renders, so an earlier swap makes it retry in a loop
     class Retry extends Component {
-        state = { error: null, rethrow: false }
+        state = { failed: false, rethrow: false }
         static getDerivedStateFromError( error ) {
-            return { error }
+            return { failed: true, error }
         }
         componentDidCatch() {
-            if( !loaded ) Current = react_lazy( memo_load )
+            Current = react_lazy( memo_load )
             this.setState( { rethrow: true } )
         }
         render() {
-            const { error, rethrow } = this.state
+            const { failed, rethrow, error } = this.state
             if( rethrow ) throw error
-            if( error ) return null
+            if( failed ) return null
             return createElement( Current, this.props.forwarded )
         }
     }
